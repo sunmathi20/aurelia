@@ -58,6 +58,8 @@ app.use(helmet({
 // CORS — configured to allow frontend origin with credentials (cookies)
 const allowedOrigins = [
   process.env.CORS_ORIGIN,
+  process.env.FRONTEND_URL,          // Vercel production URL (set in Render dashboard)
+  'https://aureli-frontend.vercel.app', // Vercel production (hardcoded fallback)
   'http://localhost:5173',
   'http://localhost:5174',
   'http://localhost:5175',
@@ -69,11 +71,13 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps, curl, Postman)
+    // Allow requests with no origin (mobile apps, curl, Postman, Render health checks)
     if (!origin) return callback(null, true);
-    // Allow any localhost / 127.0.0.1 port in development, or explicit allowed origins
+    // Allow any localhost / 127.0.0.1 in development
     const isLocalhost = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
-    if (isLocalhost || allowedOrigins.includes(origin)) {
+    // Allow any Vercel preview deployment (*.vercel.app)
+    const isVercel = /^https:\/\/[\w-]+\.vercel\.app$/.test(origin);
+    if (isLocalhost || isVercel || allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
     return callback(null, false);
