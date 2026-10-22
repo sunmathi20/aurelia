@@ -37,6 +37,16 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // ---------------------
+// Proxy Trust
+// ---------------------
+// Render (and most PaaS platforms) sit behind exactly one reverse-proxy hop.
+// Setting trust proxy to 1 tells Express to read the real client IP from the
+// first X-Forwarded-For entry. This is required for express-rate-limit v7 —
+// without it the library throws ERR_ERL_UNEXPECTED_X_FORWARDED_FOR and all
+// users share one rate-limit bucket (the proxy's IP).
+app.set('trust proxy', 1);
+
+// ---------------------
 // Security Middleware
 // ---------------------
 
@@ -74,15 +84,19 @@ app.use(cors({
 }));
 
 // Rate Limiting — prevent brute-force attacks
+// `limit` (not `max`) is the express-rate-limit v7 API.
+// 300 req / 15 min gives each real IP comfortable headroom for a React SPA
+// (auth check + wishlist fetch + product listings = ~10 req per page load)
+// while still blocking bots / scrapers that hammer the API.
 const limiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
-  max: parseInt(process.env.RATE_LIMIT_MAX) || 100,
+  limit: parseInt(process.env.RATE_LIMIT_MAX) || 300,
   message: {
     success: false,
     message: 'Too many requests, please try again later.',
   },
-  standardHeaders: true,
-  legacyHeaders: false,
+  standardHeaders: true,  // Return rate-limit info in RateLimit-* headers
+  legacyHeaders: false,   // Disable X-RateLimit-* headers
 });
 app.use('/api', limiter);
 
