@@ -5,11 +5,16 @@ const generateToken = (res, userId) => {
     expiresIn: '30d',
   });
 
+  // In production the frontend (Vercel) and backend (Render) live on
+  // different domains, so the browser needs sameSite:'none' + secure:true
+  // to attach the cookie on cross-origin requests.
+  const isProduction = process.env.NODE_ENV === 'production';
+
   res.cookie('jwt', token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV !== 'development', // Use secure cookies in production
-    sameSite: 'strict', // Prevent CSRF attacks
-    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+    secure: isProduction,                       // HTTPS only in production
+    sameSite: isProduction ? 'none' : 'lax',    // cross-site in prod, lax in dev
+    maxAge: 30 * 24 * 60 * 60 * 1000,           // 30 days
   });
 };
 
